@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bill Splitter</title>
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-3xl bg-white rounded-2xl shadow-xl p-8 space-y-6">
+    <h1 class="text-4xl font-extrabold text-center text-gray-800">Bill Splitter</h1>
+    <form method="POST" class="space-y-6">
+      <!-- People count + names -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div>
+          <label class="block text-sm font-medium text-gray-700"># People</label>
+          <input id="people-count" type="number" min="1" value="1"
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="md:col-span-2 space-y-3" id="people-list"></div>
+      </div>
+
+      <hr class="border-gray-200" />
+
+      <!-- Item count + details -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div>
+          <label class="block text-sm font-medium text-gray-700"># Items</label>
+          <input id="item-count" type="number" min="1" value="1"
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="md:col-span-2 space-y-6" id="item-list"></div>
+      </div>
+
+      <hr class="border-gray-200" />
+
+      <!-- Tax & Tip -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Total Tax</label>
+          <input name="total_tax" type="number" step="0.01" value="0"
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Total Tip</label>
+          <input name="total_tip" type="number" step="0.01" value="0"
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Tax Split</label>
+          <select name="tax_method"
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="proportional">Proportional</option>
+            <option value="equal">Equal</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Tip Split</label>
+          <select name="tip_method"
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="proportional">Proportional</option>
+            <option value="equal">Equal</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Add hidden field for num_items -->
+      <input type="hidden" name="num_items" id="num_items_hidden" value="1">
+
+      <button type="submit"
+        class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl shadow-md hover:bg-indigo-700 transition">
+        Calculate
+      </button>
+    </form>
+  </div>
+
+  <script>
+    const peopleCount = document.getElementById('people-count'),
+          peopleList  = document.getElementById('people-list'),
+          itemCount   = document.getElementById('item-count'),
+          itemList    = document.getElementById('item-list');
+
+    function renderPeople() {
+      // Save existing values before clearing
+      const savedNames = [];
+      for (let i=0; i<peopleList.children.length; i++) {
+        const wrap = peopleList.children[i];
+        const nameInput = wrap.querySelector('input[name="people[]"]');
+        if (nameInput) {
+          savedNames.push(nameInput.value);
+        }
+      }
+      
+      peopleList.innerHTML = '';
+      for (let i=0; i<peopleCount.value; i++) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `
+          <label class="block text-sm font-medium text-gray-700">Person ${i+1}</label>
+          <input name="people[]" required value="${i < savedNames.length ? savedNames[i] : ''}"
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />`;
+        peopleList.append(wrap);
+      }
+      renderItems();
+    }
+
+    function renderItems() {
+      // Save existing values before clearing
+      const savedValues = [];
+      for (let j=0; j<itemList.children.length; j++) {
+        const card = itemList.children[j];
+        const nameInput = card.querySelector(`input[name="item_name_${j}"]`);
+        const costInput = card.querySelector(`input[name="item_cost_${j}"]`);
+        const sharedInput = card.querySelector(`input[name="item_shared_${j}"]`);
+        
+        if (nameInput && costInput && sharedInput) {
+          savedValues.push({
+            name: nameInput.value,
+            cost: costInput.value,
+            shared: sharedInput.value
+          });
+        }
+      }
+      
+      itemList.innerHTML = '';
+      for (let j=0; j<itemCount.value; j++) {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-50 p-5 rounded-2xl shadow-inner space-y-4';
+        card.innerHTML = `
+          <h3 class="text-lg font-medium text-gray-800">Item ${j+1}</h3>
+          <div>
+            <label class="block text-sm text-gray-700">Name</label>
+            <input name="item_name_${j}" required value="${j < savedValues.length ? savedValues[j].name : ''}"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700">Cost</label>
+            <input name="item_cost_${j}" type="number" step="0.01" required value="${j < savedValues.length ? savedValues[j].cost : ''}"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700">Shared by</label>
+            <input name="item_shared_${j}" placeholder="all" required value="${j < savedValues.length ? savedValues[j].shared : ''}"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>`;
+        itemList.append(card);
+      }
+    }
+
+    peopleCount.addEventListener('input', renderPeople);
+    itemCount.addEventListener('input', () => {
+      renderItems();
+      // Update hidden field for num_items
+      document.getElementById('num_items_hidden').value = itemCount.value;
+    });
+    renderPeople();
+  </script>
+</body>
+</html>
